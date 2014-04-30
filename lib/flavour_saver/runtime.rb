@@ -3,6 +3,7 @@ require 'cgi'
 module FlavourSaver
   UnknownNodeTypeException          = Class.new(StandardError)
   UnknownContextException           = Class.new(StandardError)
+  NullVariableException             = Class.new(StandardError)
   InappropriateUseOfElseException   = Class.new(StandardError)
   UndefinedPrivateVariableException = Class.new(StandardError)
   class Runtime
@@ -127,7 +128,9 @@ module FlavourSaver
       when LocalVarNode
         result = private_variable_get(call.name)
       else
-        context.send(call.name, *call.arguments.map { |a| evaluate_argument(a) }, &block)
+        result = context.send(call.name, *call.arguments.map { |a| evaluate_argument(a) }, &block)
+        raise NullVariableException, "The variable #{call.name} evaluated to null" unless result
+        result
       end
     end
 
