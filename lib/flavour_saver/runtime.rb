@@ -158,7 +158,12 @@ module FlavourSaver
       alternate_runtime = create_child_runtime(node.alternate) if node.respond_to? :alternate
       block_runtime = BlockRuntime.new(block_context,content_runtime,alternate_runtime)
 
-      result = evaluate_call(call, block_context) { block_runtime }
+      begin
+        result = evaluate_call(call, block_context) { block_runtime }
+      rescue NullVariableException => e
+        # Null variables are fine in block statements
+        result = nil
+      end
 
       # If the helper fails to call it's provided block then all
       # sorts of wacky default behaviour kicks in. I don't like it,
