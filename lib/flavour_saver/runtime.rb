@@ -10,16 +10,17 @@ module FlavourSaver
 
     attr_accessor :context, :parent, :ast
 
-    def self.run(ast, context, locals={}, helpers=[])
-      self.new(ast, context, locals, helpers).to_s
+    def self.run(ast, context, locals={}, helpers=[], keep_comments=false)
+      self.new(ast, context, locals, helpers, nil, keep_comments).to_s
     end
 
-    def initialize(ast, context=nil, locals={}, helpers=[],parent=nil)
+    def initialize(ast, context=nil, locals={}, helpers=[], parent=nil, keep_comments=false)
       @ast = ast
       @locals = locals
       @helpers = helpers
       @context = context
       @parent = parent
+      @keep_comments = keep_comments
       @privates = {}
     end
 
@@ -83,7 +84,7 @@ module FlavourSaver
         end
         node
       when CommentNode
-        ''
+        @keep_comments ? node : ''
       when PartialNode
         evaluate_partial(node)
       else
