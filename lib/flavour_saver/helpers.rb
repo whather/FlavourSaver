@@ -53,13 +53,26 @@ module FlavourSaver
         extend(mixin)
       end
 
+      def array?
+        !!@source.is_a?(Array)
+      end
+
+      def [](accessor)
+        if array?
+          if accessor.match /[0-9]+/
+            return @source.at(accessor.to_i)
+          end
+        end
+        @source[accessor]
+      end
+
       def respond_to?(name)
         super || @source.respond_to?(name)
       end
 
       def method_missing(name,*args,&b)
         # I would rather have it raise a NameError, but Moustache
-        # compatibility requires that missing helpers return 
+        # compatibility requires that missing helpers return
         # nothing. A good place for bugs to hide.
         @source.send(name, *args, &b) if @source.respond_to? name
       end
@@ -96,7 +109,7 @@ module FlavourSaver
                 else
                   helpers = registered_helpers
                 end
-      helpers.merge(locals)
+      helpers = helpers.merge(locals)
       Decorator.new(helpers, context)
     end
 

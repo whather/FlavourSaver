@@ -22,7 +22,7 @@ describe FlavourSaver do
       let(:template) { "{{foo}}" }
 
       it 'returns "foo"' do
-        context.stub!(:foo).and_return('foo')
+        context.stub(:foo).and_return('foo')
         subject.should == 'foo'
       end
     end
@@ -177,7 +177,7 @@ describe FlavourSaver do
 
         it "should be escaped" do
           context.stub(:awesome).and_return("&\"'`\\<>")
-          if RUBY_VERSION == '2.0.0'
+          if RUBY_VERSION >= '2.0.0'
             subject.should == "&amp;&quot;&#39;&#x60;\\&lt;&gt;"
           else
             subject.should == "&amp;&quot;&#x27;&#x60;\\&lt;&gt;"
@@ -559,7 +559,7 @@ describe FlavourSaver do
     describe 'block helper for undefined value' do
       let(:template) { "{{#empty}}shoulnd't render{{/empty}}" }
       example do
-        subject.should == ""
+        -> { subject }.should raise_exception(FlavourSaver::UnknownHelperException)
       end
     end
 
@@ -612,6 +612,7 @@ describe FlavourSaver do
       let(:template) { "{{#people}}{{name}}{{^}}{{none}}{{/people}}" }
       example do
         context.stub(:none).and_return("No people")
+        context.stub(:people).and_return(false)
         subject.should == "No people"
       end
     end
@@ -655,7 +656,7 @@ describe FlavourSaver do
         example do
           context.stub(:people).and_return([])
           context.stub(:message).and_return("Nobody's here")
-          if RUBY_VERSION == '2.0.0'
+          if RUBY_VERSION >= '2.0.0'
             subject.should == "<p>Nobody&#39;s here</p>"
           else
             subject.should == "<p>Nobody&#x27;s here</p>"
@@ -739,6 +740,18 @@ describe FlavourSaver do
     let(:template) { "Dudes: {{> [dude]}}" }
     before do
       FS.register_partial(:dude, "{{name}}")
+    end
+    example do
+      context.stub(:name).and_return('Jeepers')
+      context.stub(:another_dude).and_return('Creepers')
+      subject.should == "Dudes: Jeepers"
+    end
+  end
+
+  describe 'partials with string paths' do
+    let(:template) { "Dudes: {{> \"dude/man\"}}" }
+    before do
+      FS.register_partial("dude/man", "{{name}}")
     end
     example do
       context.stub(:name).and_return('Jeepers')
