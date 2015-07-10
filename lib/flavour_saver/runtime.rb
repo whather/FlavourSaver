@@ -10,16 +10,17 @@ module FlavourSaver
 
     attr_accessor :context, :parent, :ast
 
-    def self.run(ast, context, locals={}, helpers=[])
-      self.new(ast, context, locals, helpers).to_s
+    def self.run(ast, context, locals={}, helpers=[], keep_comments=false)
+      self.new(ast, context, locals, helpers, nil, keep_comments).to_s
     end
 
-    def initialize(ast, context=nil, locals={}, helpers=[],parent=nil)
+    def initialize(ast, context=nil, locals={}, helpers=[], parent=nil, keep_comments=false)
       @ast = ast
       @locals = locals
       @helpers = helpers
       @context = context
       @parent = parent
+      @keep_comments = keep_comments
       @privates = {}
     end
 
@@ -83,7 +84,7 @@ module FlavourSaver
         end
         node
       when CommentNode
-        ''
+        @keep_comments ? node : ''
       when PartialNode
         evaluate_partial(node)
       else
@@ -159,7 +160,12 @@ module FlavourSaver
       alternate_runtime = create_child_runtime(node.alternate) if node.respond_to? :alternate
       block_runtime = BlockRuntime.new(block_context,content_runtime,alternate_runtime)
 
-      result = evaluate_call(call, block_context) { block_runtime }
+      begin
+        result = evaluate_call(call, block_context) { block_runtime }
+      rescue UnknownHelperException => e
+        # Null variables are fine in block statements
+        result = nil
+      end
 
       # If the helper fails to call it's provided block then all
       # sorts of wacky default behaviour kicks in. I don't like it,

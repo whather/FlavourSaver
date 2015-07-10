@@ -44,8 +44,8 @@ module FlavourSaver
     Parser.parse(tokens)
   end
 
-  def evaluate(template,context)
-    Runtime.run(parse(lex(template)), context)
+  def evaluate(template, context, keep_comments = false)
+    Runtime.run(parse(lex(template)), context, {}, [], keep_comments)
   end
 
   def register_helper(*args,&b)
