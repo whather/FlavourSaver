@@ -39,12 +39,17 @@ module FlavourSaver
     end
 
     production(:template_item) do
-      clause('output') { |e| e }
+      clause('raw_bl')     { |e| e }
+      clause('output')     { |e| e }
       clause('expression') { |e| e }
     end
 
     production(:output) do
       clause('OUT') { |o| OutputNode.new(o) }
+    end
+
+    production(:raw_bl) do
+      clause('RAWSTART RAWSTRING RAWEND') { |_,e,_| OutputNode.new(e) }
     end
 
     production(:expression) do
@@ -56,6 +61,7 @@ module FlavourSaver
     end
 
     production(:partial) do
+      clause('EXPRST WHITE? GT WHITE? STRING WHITE? EXPRE') { |_,_,_,_,e,_,_| PartialNode.new(e,[]) }
       clause('EXPRST WHITE? GT WHITE? IDENT WHITE? EXPRE') { |_,_,_,_,e,_,_| PartialNode.new(e,[]) }
       clause('EXPRST WHITE? GT WHITE? IDENT WHITE? call WHITE? EXPRE') { |_,_,_,_,e0,_,e1,_,_| PartialNode.new(e0,e1,nil) }
       clause('EXPRST WHITE? GT WHITE? IDENT WHITE? lit WHITE? EXPRE') { |_,_,_,_,e0,_,e1,_,_| PartialNode.new(e0,[],e1) }
@@ -80,6 +86,10 @@ module FlavourSaver
       clause('EXPRST expression_contents EXPRE') { |_,e,_| e }
     end
 
+    production(:subexpr) do
+      clause('OPAR expression_contents CPAR') { |_,e,_| e }
+    end
+
     production(:expr_comment) do
       clause('EXPRST BANG COMMENT EXPRE') { |_,_,e,_| e }
     end
@@ -91,12 +101,12 @@ module FlavourSaver
 
     production(:expr_bl_start) do
       clause('EXPRST HASH WHITE? IDENT WHITE? EXPRE') { |_,_,_,e,_,_| push_block CallNode.new(e,[]) }
-      clause('EXPRST HASH WHITE? IDENT WHITE arguments EXPRE') { |_,_,_,e,_,a,_| push_block CallNode.new(e,a) }
+      clause('EXPRST HASH WHITE? IDENT WHITE arguments WHITE? EXPRE') { |_,_,_,e,_,a,_,_| push_block CallNode.new(e,a) }
     end
 
     production(:expr_bl_inv_start) do
       clause('EXPRST HAT WHITE? IDENT WHITE? EXPRE') { |_,_,_,e,_,_| push_block CallNode.new(e,[]) }
-      clause('EXPRST HAT WHITE? IDENT WHITE arguments EXPRE') { |_,_,_,e,_,a,_| push_block CallNode.new(e,a) }
+      clause('EXPRST HAT WHITE? IDENT WHITE arguments WHITE? EXPRE') { |_,_,_,e,_,a,_,_| push_block CallNode.new(e,a) }
     end
 
     production(:expr_bl_end) do
@@ -120,11 +130,11 @@ module FlavourSaver
 
     production('arguments') do
       clause('argument_list') { |e| e }
-      clause('argument_list hash') { |e0,e1| e0 + [e1] }
+      clause('argument_list WHITE hash') { |e0,_,e1| e0 + [e1] }
       clause('hash') { |e| [e] }
     end
-
-    nonempty_list(:argument_list, [:object_path,:lit], :WHITE)
+    
+    nonempty_list(:argument_list, [:object_path,:lit, :local, :subexpr], :WHITE)
 
     production(:lit) do
       clause('string') { |e| e }
@@ -134,6 +144,7 @@ module FlavourSaver
 
     production(:string) do
       clause('STRING') { |e| StringNode.new(e) }
+      clause('S_STRING') { |e| StringNode.new(e) }
     end
 
     production(:number) do
@@ -150,7 +161,9 @@ module FlavourSaver
     end
 
     production(:hash_item) do
+      clause('IDENT EQ subexpr') { |e0,_,e1| { e0.to_sym => e1 } }
       clause('IDENT EQ string') { |e0,_,e1| { e0.to_sym => e1 } }
+      clause('IDENT EQ number') { |e0,_,e1| { e0.to_sym => e1 } }
       clause('IDENT EQ object_path') { |e0,_,e1| { e0.to_sym => e1 } }
     end
 

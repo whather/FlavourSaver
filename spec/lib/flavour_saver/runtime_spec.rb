@@ -72,7 +72,7 @@ describe FlavourSaver::Runtime do
       let(:template) { "{{#foo}}bar{{/foo}}baz" }
 
       it 'snatches up the block contents and skips them from evaluation' do
-        context.stub!(:foo)
+        context.stub(:foo)
         subject.evaluate_node(ast).should == 'baz'
       end
     end
@@ -107,6 +107,17 @@ describe FlavourSaver::Runtime do
         context.should_receive(:world).and_return('world')
         context.should_receive(:hello).with('world').and_return('hello world')
         subject.evaluate_expression(expr).should == 'hello world'
+      end
+    end
+
+    describe 'when called with a subexpression' do
+      let(:template) { "{{hello (there world)}}" }
+
+      it 'calls there & world first, then passes off to hello' do
+        context.should_receive(:world).and_return('world')
+        context.should_receive(:there).with('world').and_return('there world')
+        context.should_receive(:hello).with('there world').and_return('hello there world')
+        subject.evaluate_expression(expr).should == 'hello there world'
       end
     end
 

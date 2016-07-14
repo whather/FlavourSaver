@@ -3,6 +3,21 @@ require 'rltk'
 module FlavourSaver
   class Lexer < RLTK::Lexer
 
+     # seems to have problem with hash symbol in regex
+    rule /\{\{\{\{raw\}\}\}\}/, :default do
+      push_state :raw
+      :RAWSTART
+    end
+
+    rule /.*?(?=\{\{\{\{\/raw\}\}\}\})/m, :raw do |str|
+      [ :RAWSTRING, str ]
+    end
+
+    rule /\{\{\{\{\/raw\}\}\}\}/, :raw do
+      pop_state
+      :RAWEND
+    end
+
     rule /{{{/, :default do
       push_state :expression
       :TEXPRST
@@ -63,12 +78,20 @@ module FlavourSaver
       :ELSE
     end
 
-    rule /([A-Za-z]\w*)/, :expression do |name|
+    rule /([A-Za-z_]\w*)/, :expression do |name|
       [ :IDENT, name ]
     end
 
-    rule /\./, :expression do 
+    rule /\./, :expression do
       :DOT
+    end
+
+    rule /\(/, :expression do
+      :OPAR
+    end
+
+    rule /\)/, :expression do
+      :CPAR
     end
 
     rule /\=/, :expression do
@@ -78,7 +101,7 @@ module FlavourSaver
     rule /"/, :expression do
       push_state :string
     end
-    
+
     rule /(\\"|[^"])*/, :string do |str|
       [ :STRING, str ]
     end
@@ -87,10 +110,27 @@ module FlavourSaver
       pop_state
     end
 
-    # Handlebars allows methods with hyphens in them. Ruby doesn't, so
-    # we'll assume you're trying to index the context with the identifier
-    # and call the result.
-    rule /([A-Za-z][a-z0-9_-]*[a-z0-9])/, :expression do |str|
+    rule /'/, :expression do
+      push_state :s_string
+    end
+
+    rule /(\\'|[^'])*/, :s_string do |str|
+      [ :S_STRING, str ]
+    end
+
+    rule /'/, :s_string do
+      pop_state
+    end
+
+    # Handlebars allows identifiers with characters in them which Ruby does not.
+    # These are mapped to the literal notation and accessed in this way.
+    #
+    # As per the http://handlebarsjs.com/expressions.html:
+    #
+    #   Identifiers may be any unicode character except for the following:
+    #   Whitespace ! " # % & ' ( ) * + , . / ; < = > @ [ \ ] ^ ` { | } ~
+    #
+    rule /([^\s!-#%-,.\/;->@\[-^`{-~]+)/, :expression do |str|
       [ :LITERAL, str ]
     end
 

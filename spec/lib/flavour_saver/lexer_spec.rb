@@ -49,6 +49,18 @@ describe FlavourSaver::Lexer do
         end
       end
 
+      describe '{{foo (bar "baz")}}' do
+        subject { FlavourSaver::Lexer.lex "{{foo (bar 'baz')}}" }
+
+        it 'has tokens in the correct order' do
+          subject.map(&:type).should ==  [ :EXPRST, :IDENT, :WHITE, :OPAR, :IDENT, :WHITE, :S_STRING, :CPAR, :EXPRE, :EOS ]
+        end
+
+        it 'has values in the correct order' do
+          subject.map(&:value).compact.should == [ 'foo', 'bar', 'baz' ]
+        end
+      end
+
       describe '{{foo bar="baz" hello="goodbye"}}' do
         subject { FlavourSaver::Lexer.lex '{{foo bar="baz" hello="goodbye"}}' }
 
@@ -60,6 +72,39 @@ describe FlavourSaver::Lexer do
           subject.map(&:value).compact.should == [ 'foo', 'bar', 'baz', 'hello', 'goodbye' ]
         end
 
+      end
+    end
+
+    describe 'Identities' do
+
+      it 'supports as ruby methods' do
+        ids = %w( _ __ __123__ __ABC__ ABC123 Abc134def )
+        ids.each do |id|
+          subject = FlavourSaver::Lexer.lex "{{#{id}}}"
+          subject[1].type.should == :IDENT
+          subject[1].value.should == id
+        end
+      end
+
+      it 'maps non-ruby identities to literals' do
+        ids = %w( A-B 12_Mine - :example 0A test? )
+        ids.each do |id|
+          subject = FlavourSaver::Lexer.lex "{{#{id}}}"
+          subject[1].type.should == :LITERAL
+          subject[1].value.should == id
+        end
+      end
+    end
+
+    describe '{{foo bar=(baz qux)}}' do
+      subject { FlavourSaver::Lexer.lex '{{foo bar=(baz qux)}}' }
+
+      it 'has tokens in the correct order' do
+        subject.map(&:type).should == [:EXPRST, :IDENT, :WHITE, :IDENT, :EQ, :OPAR, :IDENT, :WHITE, :IDENT, :CPAR, :EXPRE, :EOS]
+      end
+
+      it 'has values in the correct order' do
+        subject.map(&:value).compact.should == [ 'foo', 'bar', 'baz', 'qux' ]
       end
     end
 
@@ -126,8 +171,8 @@ describe FlavourSaver::Lexer do
     end
 
     describe 'Backtrack expression' do
-      subject { FlavourSaver::Lexer.lex "{{../foo}}" } 
-      
+      subject { FlavourSaver::Lexer.lex "{{../foo}}" }
+
       it 'has tokens in the correct order' do
         subject.map(&:type).should == [:EXPRST, :DOT, :DOT, :FWSL, :IDENT, :EXPRE, :EOS]
       end
@@ -147,7 +192,7 @@ describe FlavourSaver::Lexer do
       describe '{{#foo}}{{bar}}{{/foo}}' do
         it 'has tokens in the correct order' do
           subject.map(&:type).should == [
-            :EXPRST, :HASH, :IDENT, :EXPRE, 
+            :EXPRST, :HASH, :IDENT, :EXPRE,
             :EXPRST, :IDENT, :EXPRE,
             :EXPRST, :FWSL, :IDENT, :EXPRE,
             :EOS
